@@ -13,7 +13,12 @@ rbtree *new_rbtree(void) {
 }
 
 void delete_rbtree(rbtree *t) {
-   free(t);
+    // 트리 내의 모든 노드를 삭제
+    if (t->root != t->nil) {
+        delete_node(t, t->root);  // 재귀적으로 노드 삭제
+    }
+    free(t->nil);  // sentinel 노드 메모리 해제
+    free(t);  // 트리 구조체 메모리 해제
 }
 
 node_t *rbtree_insert(rbtree *t, const key_t key) {
