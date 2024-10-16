@@ -107,6 +107,18 @@ static void free_subtree(rbtree* t, node_t* x) {
     }
 }
 
+/* 중위 순회로 트리의 키 값을 오름차순으로 배열에 저장함 */
+static void inorder_traversal(rbtree* t, node_t* x, key_t* arr, size_t* index, size_t n) {
+    if (x == t->nil || *index >= n) {
+        return;
+    }
+    inorder_traversal(t, x->left, arr, index, n);
+    if (*index < n) {
+        arr[*index] = x->key;
+        (*index)++;
+    }
+    inorder_traversal(t, x->right, arr, index, n);
+}
 
 //=================================================================================//
 //=================================================================================//
@@ -246,6 +258,14 @@ int rbtree_erase(rbtree* t, node_t* p) {
     return 0;
 }
 
+/* 트리의 내용을 키 순서대로 배열에 저장*/
 int rbtree_to_array(const rbtree* t, key_t* arr, const size_t n) {
-    return 0;
+    if (t == NULL || arr == NULL) {
+        return 0;
+    }
+
+    size_t index = 0;
+    inorder_traversal((rbtree*)t, t->root, arr, &index, n);
+
+    return (int)index;
 }
