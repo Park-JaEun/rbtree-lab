@@ -217,9 +217,10 @@ node_t* rbtree_find(const rbtree* t, const key_t key) {
 node_t* rbtree_min(const rbtree* t) {
     node_t* x = t->root;
     if (x == t->nil) {
-        return NULL;
+        return NULL; // 트리가 비어있음
     }
 
+    // 왼쪽 서브트리를 따라가며 최소 노드 탐색
     while (x->left != t->nil) {
         x = x->left;
     }
