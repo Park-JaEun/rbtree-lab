@@ -1,6 +1,107 @@
 #include "rbtree.h"
 #include <stdlib.h>
 
+/* x 노드 중심으로 왼쪽 회전 */
+static void left_rotate(rbtree* t, node_t* x) {
+    node_t* y = x->right;
+    x->right = y->left;
+    if (y->left != t->nil) {
+        y->left->parent = x;
+    }
+    y->parent = x->parent;
+    if (x->parent == t->nil) {
+        t->root = y;
+    }
+    else if (x == x->parent->left) {
+        x->parent->left = y;
+    }
+    else {
+        x->parent->right = y;
+    }
+    y->left = x;
+    x->parent = y;
+}
+
+/* y노드 중심으로 오른쪽 회전*/
+static void right_rotate(rbtree* t, node_t* y) {
+    node_t* x = y->left;
+    y->left = x->right;
+    if (x->right != t->nil) {
+        x->right->parent = y;
+    }
+    x->parent = y->parent;
+    if (y->parent == t->nil) {
+        t->root = x;
+    }
+    else if (y == y->parent->right) {
+        y->parent->right = x;
+    }
+    else {
+        y->parent->left = x;
+    }
+    x->right = y;
+    y->parent = x;
+}
+
+/* 새 노드 삽입 후 레드-블랙 트리 속성 유지를 위한 균형 작업하는 함수
+ z노드(RED)에 대해 트리의 속성을 유지를 위한 색변경 + 회전*/
+static void rbtree_insert_fixup(rbtree* t, node_t* z) {
+    while (z->parent->color == RBTREE_RED) {
+        if (z->parent == z->parent->parent->left) {
+            node_t* y = z->parent->parent->right;
+
+            if (y->color == RBTREE_RED) {
+                z->parent->color = RBTREE_BLACK;
+                y->color = RBTREE_BLACK;
+                z->parent->parent->color = RBTREE_RED;
+                z = z->parent->parent;
+            }
+            else {
+                if (z == z->parent->right) {
+                    z = z->parent;
+                    left_rotate(t, z);
+                }
+                z->parent->color = RBTREE_BLACK;
+                z->parent->parent->color = RBTREE_RED;
+                right_rotate(t, z->parent->parent);
+            }
+        }
+        else {
+            node_t* y = z->parent->parent->left;
+
+            if (y->color == RBTREE_RED) {
+                z->parent->color = RBTREE_BLACK;
+                y->color = RBTREE_BLACK;
+                z->parent->parent->color = RBTREE_RED;
+                z = z->parent->parent;
+            }
+            else {
+                if (z == z->parent->left) {
+                    z = z->parent;
+                    right_rotate(t, z);
+                }
+                z->parent->color = RBTREE_BLACK;
+                z->parent->parent->color = RBTREE_RED;
+                left_rotate(t, z->parent->parent);
+            }
+        }
+    }
+    t->root->color = RBTREE_BLACK;
+}
+
+static void free_subtree(rbtree* t, node_t* x) {
+    if (x != t->nil) {
+        free_subtree(t, x->left);
+        free_subtree(t, x->right);
+        free(x);
+    }
+}
+
+
+//=================================================================================//
+//=================================================================================//
+//=================================================================================//
+
 /*  센티넬 노드는 트리의 NIL 리프 노드를 나타냄.
  트리의 루트는 초기에는 센티넬 노드 가짐.*/
 rbtree* new_rbtree(void) {
@@ -40,7 +141,43 @@ void delete_rbtree(rbtree* t) {
 }
 
 node_t* rbtree_insert(rbtree* t, const key_t key) {
-    return t->root;
+    node_t* z = (node_t*)calloc(1, sizeof(node_t));
+    if (z == NULL) {
+        perror("새 노드 메모리 할당 실패");
+        exit(EXIT_FAILURE);
+    }
+    z->key = key;
+    z->left = z->right = z->parent = t->nil;
+    z->color = RBTREE_RED;
+
+    node_t* y = t->nil;
+    node_t* x = t->root;
+
+    while (x != t->nil) {
+        y = x;
+        if (z->key < x->key) {
+            x = x->left;
+        }
+        else {
+            x = x->right;
+        }
+    }
+
+    z->parent = y;
+
+    if (y == t->nil) {
+        t->root = z;
+    }
+    else if (z->key < y->key) {
+        y->left = z;
+    }
+    else {
+        y->right = z;
+    }
+
+    rbtree_insert_fixup(t, z);
+
+    return z;
 }
 
 node_t* rbtree_find(const rbtree* t, const key_t key) {
