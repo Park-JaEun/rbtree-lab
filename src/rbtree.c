@@ -201,17 +201,17 @@ node_t* rbtree_find(const rbtree* t, const key_t key) {
 
     while (x != t->nil) {
         if (key == x->key) {
-            return x;
+            return x; // 키를 가진 노드 발견
         }
         else if (key < x->key) {
-            x = x->left;
+            x = x->left; // 왼쪽 서브트리로 이동
         }
         else {
-            x = x->right;
+            x = x->right; // 오른쪽 서브트리로 이동
         }
     }
 
-    return NULL;
+    return NULL; // 키를 가진 노드가 없음
 }
 
 node_t* rbtree_min(const rbtree* t) {
