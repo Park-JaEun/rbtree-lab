@@ -229,7 +229,17 @@ node_t* rbtree_min(const rbtree* t) {
 }
 
 node_t* rbtree_max(const rbtree* t) {
-    return t->root;
+    node_t* x = t->root;
+    if (x == t->nil) {
+        return NULL; // 트리가 비어있음
+    }
+
+    // 오른쪽 서브트리를 따라가며 최대 노드 탐색
+    while (x->right != t->nil) {
+        x = x->right;
+    }
+
+    return x;
 }
 
 int rbtree_erase(rbtree* t, node_t* p) {
