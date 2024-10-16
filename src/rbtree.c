@@ -120,6 +120,92 @@ static void inorder_traversal(rbtree* t, node_t* x, key_t* arr, size_t* index, s
     inorder_traversal(t, x->right, arr, index, n); // 오른쪽 서브트리 탐색
 }
 
+/* 노드 삭제 후 레드블랙 트리 속성을 유지하기 위한 수정 작업
+ x: 수정 중심 노드의 포인터  */
+static void rbtree_erase_fixup(rbtree* t, node_t* x) {
+    while (x != t->root && x->color == RBTREE_BLACK) {
+        if (x == x->parent->left) {
+            node_t* w = x->parent->right; // 형제 노드
+
+            if (w->color == RBTREE_RED) {
+                // 형제가 빨간색이면
+                w->color = RBTREE_BLACK;
+                x->parent->color = RBTREE_RED;
+                left_rotate(t, x->parent);
+                w = x->parent->right;
+            }
+
+            if (w->left->color == RBTREE_BLACK && w->right->color == RBTREE_BLACK) {
+                // 형제의 자식들이 모두 검은색이면
+                w->color = RBTREE_RED;
+                x = x->parent;
+            }
+            else {
+                if (w->right->color == RBTREE_BLACK) {
+                    // 형제의 오른쪽 자식이 검은색이면
+                    w->left->color = RBTREE_BLACK;
+                    w->color = RBTREE_RED;
+                    right_rotate(t, w);
+                    w = x->parent->right;
+                }
+                // 형제의 오른쪽 자식이 빨간색이면
+                w->color = x->parent->color;
+                x->parent->color = RBTREE_BLACK;
+                w->right->color = RBTREE_BLACK;
+                left_rotate(t, x->parent);
+                x = t->root;
+            }
+        }
+        else {   // x가 부모의 오른쪽 자식이면 -> 대칭
+            node_t* w = x->parent->left; // 형제 노드
+
+            if (w->color == RBTREE_RED) {
+                // 형제가 빨간색이면
+                w->color = RBTREE_BLACK;
+                x->parent->color = RBTREE_RED;
+                right_rotate(t, x->parent);
+                w = x->parent->left;
+            }
+
+            if (w->right->color == RBTREE_BLACK && w->left->color == RBTREE_BLACK) {
+                // 형제의 자식들이 모두 검은색이면
+                w->color = RBTREE_RED;
+                x = x->parent;
+            }
+            else {
+                if (w->left->color == RBTREE_BLACK) {
+                    // 형제의 왼쪽 자식이 검은색이면
+                    w->right->color = RBTREE_BLACK;
+                    w->color = RBTREE_RED;
+                    left_rotate(t, w);
+                    w = x->parent->left;
+                }
+                // 형제의 왼쪽 자식이 빨간색이면
+                w->color = x->parent->color;
+                x->parent->color = RBTREE_BLACK;
+                w->left->color = RBTREE_BLACK;
+                right_rotate(t, x->parent);
+                x = t->root;
+            }
+        }
+    }
+    x->color = RBTREE_BLACK; // x는 항상 검은색으로..
+}
+
+static void rbtree_transplant(rbtree* t, node_t* u, node_t* v) {
+    if (u->parent == t->nil) {
+        t->root = v; // u가 루트이면 v가 새로운 루트가 됨
+    }
+    else if (u == u->parent->left) {
+        u->parent->left = v; // u가 왼쪽 자식이면 부모의 왼쪽 포인터를 v로 설정
+    }
+    else {
+        u->parent->right = v; // u가 오른쪽 자식이면 부모의 오른쪽 포인터를 v로 설정
+    }
+    v->parent = u->parent; // v의 부모를 u의 부모로 설정
+}
+
+
 //=================================================================================//
 //=================================================================================//
 //=================================================================================//
@@ -254,7 +340,58 @@ node_t* rbtree_max(const rbtree* t) {
     return x;
 }
 
-int rbtree_erase(rbtree* t, node_t* p) {
+/* 노드를 트리에서 삭제 후, 레드블랙 속성 유지 작업*/
+int rbtree_erase(rbtree* t, node_t* z) {
+    if (z == NULL || z == t->nil) {
+        return -1; // 존재하지 않는 노드를 삭제할 수 없음
+    }
+
+    node_t* y = z;
+    color_t y_original_color = y->color;
+    node_t* x;
+
+    if (z->left == t->nil) {
+        // 왼쪽 자식이 NIL이면 z를 오른쪽 자식으로 대체
+        x = z->right;
+        rbtree_transplant(t, z, z->right);
+    }
+    else if (z->right == t->nil) {
+        // 오른쪽 자식이 NIL이면 z를 왼쪽 자식으로 대체
+        x = z->left;
+        rbtree_transplant(t, z, z->left);
+    }
+    else {
+        // 양쪽 자식이 모두 있으면 후계자를 찾아 대체
+        y = z->right;
+        while (y->left != t->nil) {
+            y = y->left;
+        }
+        y_original_color = y->color;
+        x = y->right;
+
+        if (y->parent == z) {
+            x->parent = y;
+        }
+        else {
+            rbtree_transplant(t, y, y->right);
+            y->right = z->right;
+            y->right->parent = y;
+        }
+
+        rbtree_transplant(t, z, y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->color = z->color;
+    }
+
+    // 삭제된 노드의 메모리 해제
+    free(z);
+
+    if (y_original_color == RBTREE_BLACK) {
+        // 삭제된 노드가 검은색이면 레드-블랙 속성 유지 필요
+        rbtree_erase_fixup(t, x);
+    }
+
     return 0;
 }
 
